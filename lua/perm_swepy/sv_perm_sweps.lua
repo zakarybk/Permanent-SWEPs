@@ -152,7 +152,7 @@ end)
 
 // Dropping
 hook.Add("canDropWeapon", "StopPermSWEPDrop", function(ply, swep)
-	if PermSweps[ply] then
+	if PermSweps[ply] and IsValid(swep) then
 		if table.HasValue(PermSweps[ply], swep:GetClass()) then
 			return false
 		end
