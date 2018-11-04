@@ -9,6 +9,7 @@ PermSWEPsCFG.HiddenSWEPs = { // Ones which don't appear in weapons.GetList - If 
 	{ClassName = "weapon_crowbar", PrintName = "Crowbar"},
 	{ClassName = "weapon_frag", PrintName = "Frag Grenade"},
 	{ClassName = "weapon_physcannon", PrintName = "Gravity Gun"},
+	{ClassName = "weapon_physgun", PrintName = "Physics Gun"},
 	{ClassName = "weapon_pistol", PrintName = "Pistol"},
 	{ClassName = "weapon_rpg", PrintName = "RPG Launcher"},
 	{ClassName = "weapon_shotgun", PrintName = "Shotgun"},
