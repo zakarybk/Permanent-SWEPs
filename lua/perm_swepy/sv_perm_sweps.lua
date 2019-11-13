@@ -27,7 +27,7 @@ util.AddNetworkString("PermSweps_GetEDSInventoryFromServer")
 util.AddNetworkString("PermSweps_SendEDSInventoryToClient")
 util.AddNetworkString("PermSweps_SendEDSInventoryToServer")
 
-CreateConVar( "perm_sweps_forceswepcheck", 1, FCVAR_ARCHIVE, FCVAR_NOTIFY, "If SWEPs aren't being added then set this to 0" )
+CreateConVar( "perm_sweps_forceswepcheck", 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "If SWEPs aren't being added then set this to 0" )
 local forceswepcheck = GetConVar("perm_sweps_forceswepcheck"):GetInt()
 
 cvars.AddChangeCallback( "perm_sweps_forceswepcheck", function(convar, oldValue, newValue)
