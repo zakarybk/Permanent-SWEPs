@@ -20,10 +20,11 @@ provider.plyLeft = function(steamid)
 end
 
 provider.onLoadoutSWEPs = function(steamid)
-	return plySWEPs[steamid] and plySWEPs[steamid] or {}
+	return plySWEPs[steamid] or {}
 end
 
 provider.setOnLoadoutSWEPs = function(steamid, sweps)
+	plySWEPs[steamid] = sweps
 	util.SetPData(steamid, "PermSweps", util.TableToJSON(sweps))
 	PermSWEPsCFG.MakeSteamIDDirty(steamid)
 end

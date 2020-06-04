@@ -1,15 +1,5 @@
 --[[
-	Perma SWEP system by Hackcraft STEAM_0:1:50714411
-
-	PermSweps = {
-		ply = {swep1, swep2},
-		Group = {
-			superadmin = {swep1, swep2}
-		}
-		EDS = {
-			5 = {swep1, swep2}
-		}
-	}
+	Perma SWEP system by Zak STEAM_0:1:50714411
 
 	add in new cache
 ]]--
@@ -18,7 +8,12 @@ util.AddNetworkString("PermSweps_GetInventoryFromServer")
 util.AddNetworkString("PermSweps_SendInventoryToClient")
 util.AddNetworkString("PermSweps_SendInventoryToServer")
 
-local setDirty = {} // ply.setDirty = true by default || on any change, make everyone dirty
+-- Dirty cache
+local setDirty = {}		// ply: true/false (is dirty?)
+local dirtySWEPs = {}	// ply: sweps{} or false/nil
+
+local OtherSweps = PermSWEPsCFG.HiddenSWEPs or {}
+local swepsList = false
 
 PermSWEPsCFG.MakeEveryoneDirty = function()
 	for k, ply in pairs(player.GetAll()) do
@@ -33,9 +28,6 @@ PermSWEPsCFG.MakeSteamIDDirty = function(steamid)
 	end
 end
 
--- check here
-local sweps = checkSWEPValidity and getValidSWEPS(sweps) or sweps
-
 -- Force SWEP check
 CreateConVar("perm_sweps_forceswepcheck",
 	1,
@@ -47,11 +39,6 @@ cvars.AddChangeCallback("perm_sweps_forceswepcheck", function(convar, oldValue, 
 	checkSWEPValidity = tonumber(newValue) 
 end, "perm_sweps")
 
--- Other
-local PermSweps = PermSweps or {}
-local OtherSweps = PermSWEPsCFG.HiddenSWEPs or {}
-local swepsList = false
-local EDSSWEPcache = {}
 
 local function getValidSWEPs()
 	if !swepsList then
@@ -70,70 +57,93 @@ local function differentTableAdd(t1, t2)
 	return t1
 end
 
--- Rebuild EDS weapon cache
-local function ReBuildEDSSWEPcache()
-	local new = {}
-	local builder = {}
-	for i=1, 100 do
-		builder = differentTableAdd(builder, PermSweps.EDS[i] or {})
-		new[i] = builder
+local function providerFromID(id)
+	local provider = false
+
+	for i, prov in pairs(PermSWEPsCFG.SWEPProviders) do
+		if prov.id == id then
+			provider = prov
+		end
+		break
 	end
-	EDSSWEPcache = new
---	PrintTable(EDSSWEPcache)
+
+	return provider
 end
 
--- Load sweps
-local function LoadPermSwep(ply)
-	local sweps = ply:GetPData("PermSweps", false)
-	if sweps then
-		PermSweps[ply] = util.JSONToTable(sweps)
-	end
-end
--- Auto refresh
-for k, v in ipairs(player.GetHumans()) do
-	LoadPermSwep(v)
-end
+--[[
+	Provider (SWEP providers) hooking 
+]]--
 
--- Load group sweps
-local function LoadGroupSWEPS()
-	PermSweps.Group = {}
-	local saved = file.Read("perm_sweps_groups.txt", "DATA")
-	if saved then
-		PermSweps.Group = util.JSONToTable(saved) or {}
+local function table_AddWithoutDuplicates(target, source)
+	for i, val in pairs(source) do
+		if not table.HasValue(target, val) then
+			table.insert(target, val)
+		end
 	end
 end
-LoadGroupSWEPS()
 
--- Save groups sweps
-local function SaveGroupSWEPS(s)
-	file.Write("perm_sweps_groups.txt", util.TableToJSON(s))
-end
-
--- Load eds sweps
-local function LoadEDSSWEPS()
-	PermSweps.EDS = {}
-	local saved = file.Read("perm_sweps_eds.txt", "DATA")
-	if saved then
-		PermSweps.EDS = util.JSONToTable(saved) or {}
+local function buildLoadout(ply)
+	local sweps = {}
+	for i, provider in pairs(PermSWEPsCFG.SWEPProviders) do
+		local special = provider.convertPlyToFuncArg(ply)
+		table_AddWithoutDuplicates(sweps, provider.onLoadoutSWEPs(special))
 	end
-end
-LoadEDSSWEPS()
-
--- Save eds sweps
-local function SaveEDSSWEPS(s)
-	file.Write("perm_sweps_eds.txt", util.TableToJSON(s))
-	ReBuildEDSSWEPcache()
+	return sweps
 end
 
 -- Player connect
 hook.Add("PlayerInitialSpawn", "PermSwepLoad", function(ply)
-	LoadPermSwep(ply)
+	setDirty[ply] = true
+
+	for i, provider in pairs(PermSWEPsCFG.SWEPProviders) do
+		local special = provider.convertPlyToFuncArg(ply)
+		provider.onInitalSpawnLoad(special)
+	end
 end)
 
 -- Player disconnect
 hook.Add("PlayerDisconnected", "PermSwepUnLoad", function(ply)
-	PermSweps[ply] = nil
+	dirtySWEPs[ply] = nil
+	setDirty[ply] = nil
+
+	for i, provider in pairs(PermSWEPsCFG.SWEPProviders) do
+		local special = provider.convertPlyToFuncArg(ply)
+		provider.plyLeft(special)
+	end
 end)
+
+-- Loadout
+hook.Add("PlayerLoadout", "GivePermSweps", function(ply)
+	-- Update cache
+	if setDirty[ply] then
+		setDirty[ply] = false
+		local sweps = buildLoadout(ply)
+		if #sweps > 0 then
+			dirtySWEPs[ply] = sweps
+		else
+			dirtySWEPs[ply] = false
+		end
+	end
+	-- Give SWEPs
+	if dirtySWEPs[ply] then
+		for i, swep in ipairs(dirtySWEPs[ply]) do
+			ply:Give(swep)
+		end
+	end
+end)
+
+-- Dropping
+hook.Add("canDropWeapon", "StopPermSWEPDrop", function(ply, swep)
+	if dirtySWEPs[ply] and IsValid(swep) then
+		if table.HasValue(dirtySWEPs[ply], swep:GetClass()) then
+			return false
+		end
+	end
+end)
+
+--[[
+	other 
+]]--
 
 -- Chat command
 hook.Add( "PlayerSay", "PermSwepMenu", function( ply, text, public )
@@ -143,35 +153,6 @@ hook.Add( "PlayerSay", "PermSwepMenu", function( ply, text, public )
 	end
 end )
 
--- Loadout
-hook.Add("PlayerLoadout", "GivePermSweps", function(ply)
-	if PermSweps[ply] then
-		for k, v in ipairs(PermSweps[ply]) do
-			ply:Give(v)
-		end
-	end
-	if PermSweps.Group[ply:GetUserGroup()] then
-		local sweps = PermSweps.Group[ply:GetUserGroup()]
-		for k, v in ipairs(sweps) do
-			ply:Give(v)
-		end
-	end
-	if EDSCFG and EDSCFG.Players[ply] != nil then
-		local sweps = EDSSWEPcache[EDSCFG.RankPower[EDSCFG.Players[ply]]] or {}
-		for k, v in ipairs(sweps) do
-			ply:Give(v)
-		end
-	end
-end)
-
--- Dropping
-hook.Add("canDropWeapon", "StopPermSWEPDrop", function(ply, swep)
-	if PermSweps[ply] and IsValid(swep) then
-		if table.HasValue(PermSweps[ply], swep:GetClass()) then
-			return false
-		end
-	end
-end)
 
 -- See if weapon exists
 local function getValidSWEPS(weps)
@@ -191,92 +172,37 @@ end
 net.Receive("PermSweps_SendInventoryToServer", function(len, ply)
 	if !PermSWEPsCFG.CanEdit(ply) then return end
 	
+	local provider = net.ReadString()
 	local target = net.ReadString()
 	local sweps = net.ReadString()
 
-	-- Validate all sweps
-	local weps = util.TableToJSON( checkSWEPValidity and getValidSWEPS(util.JSONToTable(sweps)) or util.JSONToTable(sweps) )
+	sweps = util.JSONToTable(sweps)
 
---	print("PermSweps_SendInventoryToServer")
---	print(target)
---	print(sweps)
+	-- Validate
+	local validSWEPs = checkSWEPValidity and getValidSWEPS(sweps) or sweps
+	local provider = providerFromID(provider)
 
-	if string.Left(target, 5) == "STEAM" then
-		util.SetPData(target, "PermSweps", weps)
-		local real = player.GetBySteamID(target)
-		if real then
-			PermSweps[real] = util.JSONToTable(weps)
-		end
+	-- Update -- todo error func
+	if provider then
+		provider.setOnLoadoutSWEPs(target, sweps)
 	end
 end)
-
--- Send Group inventory to server
-net.Receive("PermSweps_SendGroupInventoryToServer", function(len, ply)
-	if !PermSWEPsCFG.CanEdit(ply) then return end
-	
-	local target = net.ReadString()
-	local sweps = net.ReadString()
-
-	-- Validate all sweps
-	local weps = util.TableToJSON( checkSWEPValidity and getValidSWEPS(util.JSONToTable(sweps)) or util.JSONToTable(sweps) )
-
-	PermSweps.Group[target] = util.JSONToTable(weps)
-	SaveGroupSWEPS(PermSweps.Group)
-end)
-
--- Send EDS inventory to server
-net.Receive("PermSweps_SendEDSInventoryToServer", function(len, ply)
-	if !PermSWEPsCFG.CanEdit(ply) then return end
-	
-	local target = net.ReadInt(16)
-	local sweps = net.ReadString()
-
-	-- Validate all sweps
-	local weps = util.TableToJSON( checkSWEPValidity and getValidSWEPS(util.JSONToTable(sweps)) or util.JSONToTable(sweps) )
-
---	print(target, weps)
-	PermSweps.EDS[target] = util.JSONToTable(weps)
-	SaveEDSSWEPS(PermSweps.EDS)
---	print("---")
---	print(weps)
---	print("---")
-end)
-
--- Table add
-local function tableAdd(t1, t2)
-	local new = {}
-	for k, v in ipairs(t1) do
-		if !table.HasValue(new, v) then
-			table.insert(new, v)
-		end
-	end
-	for k, v in ipairs(t2) do
-		if !table.HasValue(new, v) then
-			table.insert(new, v)
-		end
-	end
-	return new
-end
 
 -- Add to
 concommand.Add("perm_sweps_add", function(ply, cmd, args, argStr) -- use "" around steamid
-	if !IsValid(ply) or ply:IsSuperAdmin() then
+	if !IsValid(ply) or PermSWEPsCFG.CanEdit(ply) then
 		if args[1] != nil and args[2] != nil then
 			local target = args[1]
 			if string.Left(target, 5) == "STEAM" then
 				table.remove(args, 1)
 				local weps = checkSWEPValidity and getValidSWEPS(args) or args
-				local oldweps = util.GetPData(target, "PermSweps", false)
-				if oldweps then
---					print(oldweps)
-					weps = tableAdd(weps, util.JSONToTable(oldweps))
-				end
-				if #weps >= 1 then
-					util.SetPData(target, "PermSweps", util.TableToJSON(weps))
-					local real = player.GetBySteamID(target)
-					if real then
-						PermSweps[real] = weps
-					end
+
+				local provider = providerFromID("ply")
+				if provider then
+					local oldweps = provider.onLoadoutSWEPs(target)
+
+					table_AddWithoutDuplicates(weps, oldweps)
+					provider.setOnLoadoutSWEPs(target, weps)
 				end
 			end
 		end
@@ -285,26 +211,25 @@ end)
 
 -- Remove from
 concommand.Add("perm_sweps_remove", function(ply, cmd, args, argStr)
-	if !IsValid(ply) or ply:IsSuperAdmin() then
+	if !IsValid(ply) or PermSWEPsCFG.CanEdit(ply) then
 		if args[1] != nil and args[2] != nil then
 			local target = args[1]
 			if string.Left(target, 5) == "STEAM" then
 				table.remove(args, 1)
 				local weps = checkSWEPValidity and getValidSWEPS(args) or args
-				local oldweps = util.GetPData(target, "PermSweps", false)
-				if !oldweps then return end
-				if #weps >= 1 then
+
+				local provider = providerFromID("ply")
+				if provider then
+					local oldweps = provider.onLoadoutSWEPs(target)
+
 					local newweps = {}
 					for k, v in ipairs(util.JSONToTable(oldweps)) do
 						if !table.HasValue(weps, v) then
 							table.insert(newweps, v)
 						end
 					end
-					util.SetPData(target, "PermSweps", util.TableToJSON(newweps))
-					local real = player.GetBySteamID(target)
-					if real then
-						PermSweps[real] = newweps
-					end
+					
+					provider.setOnLoadoutSWEPs(target, newweps)
 				end
 			end
 		end
@@ -315,56 +240,21 @@ end)
 net.Receive("PermSweps_GetInventoryFromServer", function(len, ply)
 	if !PermSWEPsCFG.CanEdit(ply) then return end
 
+	local provider = net.ReadString()
 	local target = net.ReadString()
-	local real = player.GetBySteamID(target)
-
---	print(target)
---	PrintTable(PermSweps)
 
 	net.Start("PermSweps_SendInventoryToClient")
-	if real then
-		if PermSweps[real] then
-			net.WriteString(util.TableToJSON(PermSweps[real]))
-		else
-			net.WriteString(util.TableToJSON({}))
-		end
-	else
-		local data = util.GetPData(target, "PermSweps", false)
-		if data then
-			net.WriteString(data)
-		else
-			net.WriteString(util.TableToJSON({}))
-		end
-	end
+		net.WriteString(provider)
+		net.WriteString(target)
+		net.WriteString(provider.onLoadoutSWEPs(target))
 	net.Send(ply)
 end)
 
--- Get Group inventory
-net.Receive("PermSweps_GetGroupInventoryFromServer", function(len, ply)
-	if !PermSWEPsCFG.CanEdit(ply) then return end
-
-	local target = net.ReadString()
-
-	net.Start("PermSweps_SendGroupInventoryToClient")
-	if PermSweps.Group[target] then
-		net.WriteString(util.TableToJSON(PermSweps.Group[target]))
-	else
-		net.WriteString(util.TableToJSON({}))
+--[[
+	Autorefresh
+]]--
+for i, ply in pairs(player.GetAll()) do
+	if IsValid(ply) then
+		setDirty[ply] = true
 	end
-	net.Send(ply)
-end)
-
--- Get EDS inventory
-net.Receive("PermSweps_GetEDSInventoryFromServer", function(len, ply)
-	if !PermSWEPsCFG.CanEdit(ply) then return end
-
-	local target = net.ReadInt(16)
-
-	net.Start("PermSweps_SendEDSInventoryToClient")
-	if PermSweps.EDS[target] then
-		net.WriteString(util.TableToJSON(PermSweps.EDS[target]))
-	else
-		net.WriteString(util.TableToJSON({}))
-	end
-	net.Send(ply)
-end)
+end
