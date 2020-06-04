@@ -1,6 +1,6 @@
 PermSWEPsCFG = PermSWEPsCFG or {}
 
-PermSWEPsCFG.HiddenSWEPs = { -- Ones which don't appear in weapons.GetList - If some SWEPs aren't listed and you don't want to add to this then run "perm_sweps_forceswepcheck 0" in console
+PermSWEPsCFG.HiddenSWEPs = { -- Ones which don't appear in weapons.GetList - If some SWEPs aren't listed and you don't want to add to this then run "perm_sweps_wepCheckVar 0" in console
 	-- HL2
 	{ClassName = "weapon_357", PrintName = "357"},
 	{ClassName = "weapon_ar2", PrintName = "AR2"},
@@ -17,6 +17,12 @@ PermSWEPsCFG.HiddenSWEPs = { -- Ones which don't appear in weapons.GetList - If 
 	{ClassName = "weapon_smg1", PrintName = "SMG"},
 	{ClassName = "weapon_stunstick", PrintName = "Stunstick"}
 }
+
+PermSWEPsCFG.CanEdit = function(ply)
+	return ply:IsSuperAdmin()
+end
+
+PermSWEPsCFG.SWEPProviders = {}
 
 -- Adding/removing weapons from console
 --[[

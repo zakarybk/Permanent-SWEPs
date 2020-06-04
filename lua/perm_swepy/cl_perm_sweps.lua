@@ -14,7 +14,7 @@ local thingToThing = {
 }
 local currentMode = false
 
-local function getweaponsList()
+local function getValidSWEPs()
 	if !swepsList then
 		swepsList = table.Add(weapons.GetList(), OtherSweps)
 	end
@@ -23,7 +23,7 @@ end
 
 local function weaponList()
 	local new = {}
-	for k, v in ipairs(getweaponsList()) do
+	for k, v in ipairs(getValidSWEPs()) do
 --		PrintTable(v)
 		if istable(v) and v.PrintName and #v.PrintName >= 1 and v.ClassName and !table.HasValue(currentInventory, v.ClassName) and !string.find(v.ClassName, "base") then
 			table.insert(new, {PrintName = v.PrintName, ClassName = v.ClassName})
@@ -336,7 +336,7 @@ net.Receive("PermSweps_SendInventoryToClient", function(len)
 	end
 
 	perm.inventory:Clear()
-	for k, v in ipairs(getweaponsList()) do
+	for k, v in ipairs(getValidSWEPs()) do
 		if table.HasValue(currentInventory, v.ClassName) then
 			perm.inventory:AddLine(v.PrintName, v.ClassName)
 		end
@@ -357,7 +357,7 @@ net.Receive("PermSweps_SendGroupInventoryToClient", function(len)
 	end
 
 	perm.inventory:Clear()
-	for k, v in ipairs(getweaponsList()) do
+	for k, v in ipairs(getValidSWEPs()) do
 		if table.HasValue(currentInventory, v.ClassName) then
 			perm.inventory:AddLine(v.PrintName, v.ClassName)
 		end
@@ -378,7 +378,7 @@ net.Receive("PermSweps_SendEDSInventoryToClient", function(len)
 	end
 
 	perm.inventory:Clear()
-	for k, v in ipairs(getweaponsList()) do
+	for k, v in ipairs(getValidSWEPs()) do
 		if table.HasValue(currentInventory, v.ClassName) then
 			perm.inventory:AddLine(v.PrintName, v.ClassName)
 		end

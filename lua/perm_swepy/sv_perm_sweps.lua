@@ -10,36 +10,50 @@
 			5 = {swep1, swep2}
 		}
 	}
+
+	add in new cache
 ]]--
 
--- Players
 util.AddNetworkString("PermSweps_GetInventoryFromServer")
 util.AddNetworkString("PermSweps_SendInventoryToClient")
 util.AddNetworkString("PermSweps_SendInventoryToServer")
 
--- Groups
-util.AddNetworkString("PermSweps_GetGroupInventoryFromServer")
-util.AddNetworkString("PermSweps_SendGroupInventoryToClient")
-util.AddNetworkString("PermSweps_SendGroupInventoryToServer")
+local setDirty = {} // ply.setDirty = true by default || on any change, make everyone dirty
 
--- EDS
-util.AddNetworkString("PermSweps_GetEDSInventoryFromServer")
-util.AddNetworkString("PermSweps_SendEDSInventoryToClient")
-util.AddNetworkString("PermSweps_SendEDSInventoryToServer")
+PermSWEPsCFG.MakeEveryoneDirty = function()
+	for k, ply in pairs(player.GetAll()) do
+		setDirty[ply] = true
+	end
+end
 
-CreateConVar( "perm_sweps_forceswepcheck", 1, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "If SWEPs aren't being added then set this to 0" )
-local forceswepcheck = GetConVar("perm_sweps_forceswepcheck"):GetInt()
+PermSWEPsCFG.MakeSteamIDDirty = function(steamid)
+	local ply = player.GetBySteamID(steamid)
+	if ply then
+		setDirty[ply] = true
+	end
+end
 
-cvars.AddChangeCallback( "perm_sweps_forceswepcheck", function(convar, oldValue, newValue)
-	forceswepcheck = tonumber(newValue)
-end, "perm_sweps" )
+-- check here
+local sweps = checkSWEPValidity and getValidSWEPS(sweps) or sweps
 
+-- Force SWEP check
+CreateConVar("perm_sweps_forceswepcheck",
+	1,
+	{FCVAR_ARCHIVE, FCVAR_NOTIFY},
+	"If SWEPs aren't being added then set this to 0"
+)
+local checkSWEPValidity = GetConVar("perm_sweps_forceswepcheck"):GetInt()
+cvars.AddChangeCallback("perm_sweps_forceswepcheck", function(convar, oldValue, newValue)
+	checkSWEPValidity = tonumber(newValue) 
+end, "perm_sweps")
+
+-- Other
 local PermSweps = PermSweps or {}
 local OtherSweps = PermSWEPsCFG.HiddenSWEPs or {}
 local swepsList = false
 local EDSSWEPcache = {}
 
-local function getweaponsList()
+local function getValidSWEPs()
 	if !swepsList then
 		swepsList = table.Add(weapons.GetList(), OtherSweps)
 	end
@@ -162,7 +176,7 @@ end)
 -- See if weapon exists
 local function getValidSWEPS(weps)
 	local weps2 = {}
-	local wepsT = getweaponsList()
+	local wepsT = getValidSWEPs()
 	for _, v in ipairs(wepsT) do
 		for _, wep in ipairs(weps) do
 			if v.ClassName == wep then
@@ -175,13 +189,13 @@ end
 
 -- Update inventory
 net.Receive("PermSweps_SendInventoryToServer", function(len, ply)
-	if !ply:IsSuperAdmin() then return end
+	if !PermSWEPsCFG.CanEdit(ply) then return end
 	
 	local target = net.ReadString()
 	local sweps = net.ReadString()
 
 	-- Validate all sweps
-	local weps = util.TableToJSON( forceswepcheck and getValidSWEPS(util.JSONToTable(sweps)) or util.JSONToTable(sweps) )
+	local weps = util.TableToJSON( checkSWEPValidity and getValidSWEPS(util.JSONToTable(sweps)) or util.JSONToTable(sweps) )
 
 --	print("PermSweps_SendInventoryToServer")
 --	print(target)
@@ -198,13 +212,13 @@ end)
 
 -- Send Group inventory to server
 net.Receive("PermSweps_SendGroupInventoryToServer", function(len, ply)
-	if !ply:IsSuperAdmin() then return end
+	if !PermSWEPsCFG.CanEdit(ply) then return end
 	
 	local target = net.ReadString()
 	local sweps = net.ReadString()
 
 	-- Validate all sweps
-	local weps = util.TableToJSON( forceswepcheck and getValidSWEPS(util.JSONToTable(sweps)) or util.JSONToTable(sweps) )
+	local weps = util.TableToJSON( checkSWEPValidity and getValidSWEPS(util.JSONToTable(sweps)) or util.JSONToTable(sweps) )
 
 	PermSweps.Group[target] = util.JSONToTable(weps)
 	SaveGroupSWEPS(PermSweps.Group)
@@ -212,13 +226,13 @@ end)
 
 -- Send EDS inventory to server
 net.Receive("PermSweps_SendEDSInventoryToServer", function(len, ply)
-	if !ply:IsSuperAdmin() then return end
+	if !PermSWEPsCFG.CanEdit(ply) then return end
 	
 	local target = net.ReadInt(16)
 	local sweps = net.ReadString()
 
 	-- Validate all sweps
-	local weps = util.TableToJSON( forceswepcheck and getValidSWEPS(util.JSONToTable(sweps)) or util.JSONToTable(sweps) )
+	local weps = util.TableToJSON( checkSWEPValidity and getValidSWEPS(util.JSONToTable(sweps)) or util.JSONToTable(sweps) )
 
 --	print(target, weps)
 	PermSweps.EDS[target] = util.JSONToTable(weps)
@@ -251,7 +265,7 @@ concommand.Add("perm_sweps_add", function(ply, cmd, args, argStr) -- use "" arou
 			local target = args[1]
 			if string.Left(target, 5) == "STEAM" then
 				table.remove(args, 1)
-				local weps = forceswepcheck and getValidSWEPS(args) or args
+				local weps = checkSWEPValidity and getValidSWEPS(args) or args
 				local oldweps = util.GetPData(target, "PermSweps", false)
 				if oldweps then
 --					print(oldweps)
@@ -276,7 +290,7 @@ concommand.Add("perm_sweps_remove", function(ply, cmd, args, argStr)
 			local target = args[1]
 			if string.Left(target, 5) == "STEAM" then
 				table.remove(args, 1)
-				local weps = forceswepcheck and getValidSWEPS(args) or args
+				local weps = checkSWEPValidity and getValidSWEPS(args) or args
 				local oldweps = util.GetPData(target, "PermSweps", false)
 				if !oldweps then return end
 				if #weps >= 1 then
@@ -299,7 +313,7 @@ end)
 
 -- Get inventory
 net.Receive("PermSweps_GetInventoryFromServer", function(len, ply)
-	if !ply:IsSuperAdmin() then return end
+	if !PermSWEPsCFG.CanEdit(ply) then return end
 
 	local target = net.ReadString()
 	local real = player.GetBySteamID(target)
@@ -327,7 +341,7 @@ end)
 
 -- Get Group inventory
 net.Receive("PermSweps_GetGroupInventoryFromServer", function(len, ply)
-	if !ply:IsSuperAdmin() then return end
+	if !PermSWEPsCFG.CanEdit(ply) then return end
 
 	local target = net.ReadString()
 
@@ -342,7 +356,7 @@ end)
 
 -- Get EDS inventory
 net.Receive("PermSweps_GetEDSInventoryFromServer", function(len, ply)
-	if !ply:IsSuperAdmin() then return end
+	if !PermSWEPsCFG.CanEdit(ply) then return end
 
 	local target = net.ReadInt(16)
 
