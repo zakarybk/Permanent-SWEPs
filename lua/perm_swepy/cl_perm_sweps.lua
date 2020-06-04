@@ -1,6 +1,6 @@
-/*
+--[[
 	Perma SWEP system by Hackcraft STEAM_0:1:50714411
-*/
+]]--
 
 local currentPerson, currentGroup, currentEDS
 local currentInventory = {}
@@ -24,7 +24,7 @@ end
 local function weaponList()
 	local new = {}
 	for k, v in ipairs(getweaponsList()) do
-//		PrintTable(v)
+--		PrintTable(v)
 		if istable(v) and v.PrintName and #v.PrintName >= 1 and v.ClassName and !table.HasValue(currentInventory, v.ClassName) and !string.find(v.ClassName, "base") then
 			table.insert(new, {PrintName = v.PrintName, ClassName = v.ClassName})
 		end
@@ -81,7 +81,7 @@ local function PermMenu()
 	Frame:ShowCloseButton( true )
 	Frame:MakePopup()
 
-	// Multipurpose
+	-- Multipurpose
 	local steamid = vgui.Create( "DTextEntry", Frame ) 
 	steamid:SetPos( 805, 55 )
 	steamid:SetSize( 190, 20 )
@@ -126,7 +126,7 @@ local function PermMenu()
 		end
 	end
 
-	// Pick from Players, Groups, EDS power
+	-- Pick from Players, Groups, EDS power
 	boxes.Pick = vgui.Create( "DComboBox", Frame )
 	boxes.Pick:SetPos( 5, 30 )
 	boxes.Pick:SetSize( 990, 20 )
@@ -156,7 +156,7 @@ local function PermMenu()
 		end
 	end
 
-	// Players
+	-- Players
 	boxes.Player = vgui.Create( "DComboBox", Frame )
 	boxes.Player:SetPos( 5, 55 )
 	boxes.Player:SetSize( 800, 20 )
@@ -187,7 +187,7 @@ local function PermMenu()
 		end
 	end
 
-	// Groups
+	-- Groups
 	boxes.Group = vgui.Create( "DComboBox", Frame )
 	boxes.Group:SetPos( 5, 55 )
 	boxes.Group:SetSize( 800, 20 )
@@ -197,7 +197,7 @@ local function PermMenu()
 		boxes.Group:AddChoice( k )
 	end
 	boxes.Group.OnSelect = function( panel, index, value )
-		// do stuff here
+		-- do stuff here
 		currentGroup = value
 		currentInventory = {}
 		boxes.Group:SetValue( value )
@@ -206,7 +206,7 @@ local function PermMenu()
 		net.SendToServer()
 	end
 
-	// EDS Power
+	-- EDS Power
 	boxes.EDS = vgui.Create( "DComboBox", Frame )
 	boxes.EDS:SetPos( 5, 55 )
 	boxes.EDS:SetSize( 800, 20 )
@@ -216,7 +216,7 @@ local function PermMenu()
 		boxes.EDS:AddChoice( i )
 	end
 	boxes.EDS.OnSelect = function( panel, index, value )
-		// do stuff here
+		-- do stuff here
 		currentEDS = value
 		currentInventory = {}
 		boxes.EDS:SetValue( value )
@@ -318,7 +318,7 @@ concommand.Add("perm_swep_menu", function(ply)
 	end
 end)
 
-// Player
+-- Player
 net.Receive("PermSweps_SendInventoryToClient", function(len)
 	if currentMode != "Player" then return end
 
@@ -326,9 +326,9 @@ net.Receive("PermSweps_SendInventoryToClient", function(len)
 
 	currentInventory = util.JSONToTable(data)
 
-//	print("t")
-//	PrintTable(currentInventory)
-//	print("t")
+--	print("t")
+--	PrintTable(currentInventory)
+--	print("t")
 
 	perm.available:Clear()
 	for k, v in ipairs(weaponList()) do
@@ -343,7 +343,7 @@ net.Receive("PermSweps_SendInventoryToClient", function(len)
 	end
 end)
 
-// Group
+-- Group
 net.Receive("PermSweps_SendGroupInventoryToClient", function(len)
 	if currentMode != "Group" then return end
 
@@ -364,7 +364,7 @@ net.Receive("PermSweps_SendGroupInventoryToClient", function(len)
 	end
 end)
 
-// EDS
+-- EDS
 net.Receive("PermSweps_SendEDSInventoryToClient", function(len)
 	if currentMode != "EDS" then return end
 

@@ -1,7 +1,7 @@
 PermSWEPsCFG = PermSWEPsCFG or {}
 
-PermSWEPsCFG.HiddenSWEPs = { // Ones which don't appear in weapons.GetList - If some SWEPs aren't listed and you don't want to add to this then run "perm_sweps_forceswepcheck 0" in console
-	// HL2
+PermSWEPsCFG.HiddenSWEPs = { -- Ones which don't appear in weapons.GetList - If some SWEPs aren't listed and you don't want to add to this then run "perm_sweps_forceswepcheck 0" in console
+	-- HL2
 	{ClassName = "weapon_357", PrintName = "357"},
 	{ClassName = "weapon_ar2", PrintName = "AR2"},
 	{ClassName = "weapon_bugbait", PrintName = "BugBait"},
@@ -18,8 +18,8 @@ PermSWEPsCFG.HiddenSWEPs = { // Ones which don't appear in weapons.GetList - If 
 	{ClassName = "weapon_stunstick", PrintName = "Stunstick"}
 }
 
-// Adding/removing weapons from console
-/*
+-- Adding/removing weapons from console
+--[[
 	I don't know the limit but more than one swep can be added or removed at once using the sweps class separated by a space
 	Make sure the STEAMID is in quotes or stuff won't work!
 
@@ -32,4 +32,4 @@ PermSWEPsCFG.HiddenSWEPs = { // Ones which don't appear in weapons.GetList - If 
 
 		perm_sweps_remove "STEAM_0:1:50714411" weapon_357
 		perm_sweps_remove "STEAM_0:1:50714411" weapon_ar2 weapon_bugbait weapon_crossbow
-*/
+]]--
