@@ -22,7 +22,17 @@ PermSWEPsCFG.CanEdit = function(ply)
 	return ply:IsSuperAdmin()
 end
 
+-- Do not edit below this line
 PermSWEPsCFG.SWEPProviders = {}
+PermSWEPsCFG.AddSWEPProvider = function(provider)
+	-- Remove duplicates, backwards to avoid problems with reordering
+	for i=#PermSWEPsCFG.SWEPProviders, 1, -1 do
+		if PermSWEPsCFG.SWEPProviders[i].id == provider.id then
+			table.remove(PermSWEPsCFG.SWEPProviders, PermSWEPsCFG.SWEPProviders[i])
+		end
+	end
+	table.insert(PermSWEPsCFG.SWEPProviders, provider)
+end
 
 -- Adding/removing weapons from console
 --[[

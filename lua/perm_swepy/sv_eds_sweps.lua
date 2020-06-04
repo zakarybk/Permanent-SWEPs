@@ -14,38 +14,44 @@ local function table_AddWithoutDuplicates(target, source)
 	end
 end
 
+--[[ Combining like this doesn't work with the design
 local function combineSWEPsThroughRanks()
 	local combined = {}
 	local previousSWEPs = {}
 
 	for i=1, 100 do
-		table_AddWithoutDuplicates(combined, previousSWEPs)
+		istr = tostring(i)
+		combined[istr] = {}
+		table_AddWithoutDuplicates(combined[istr], previousSWEPs)
 
-		if SWEPs[i] then
-			table_AddWithoutDuplicates(combined, previousSWEPs)
+		if SWEPs[istr] then
+			table_AddWithoutDuplicates(combined[istr], SWEPs[istr])
 		end
+
+		table_AddWithoutDuplicates(previousSWEPs, combined[istr])
 	end
 
 	return combined
 end
+]]--
 
 local function loadSWEPs()
 	local saved = file.Read(saveLocation, "DATA")
-	return saved and util.TableToJSON(saved) or {}
+	return saved and util.JSONToTable(saved) or {}
 end
 
 provider.convertPlyToFuncArg = function(ply)
 	if EDSCFG then
-		return util.GetPData(steamid, "EDSCFG.Ranks", 0)
+		return tostring(util.GetPData(ply:SteamID(), "EDSCFG.Ranks", 0))
 	end
-	return 0
+	return "0"
 end
 
 provider.onInitalSpawnLoad = function(groupid)
 	if not loadedSWEPs then
 		loadedSWEPs = true
 		SWEPs = loadSWEPs()
-		combinedSWEPs = combineSWEPsThroughRanks()
+		--combinedSWEPs = combineSWEPsThroughRanks()
 	end
 end
 
@@ -54,13 +60,16 @@ provider.plyLeft = function(groupid)
 end
 
 provider.onLoadoutSWEPs = function(groupid)
-	return combinedSWEPs[groupid] or {}
+	return SWEPs[groupid] or {}
 end
 
 provider.setOnLoadoutSWEPs = function(groupid, sweps)
-	SWEPs[groupid] = sweps
-	file.Write(saveLocation, util.TableToJSON(SWEPs))
-	PermSWEPsCFG.MakeEveryoneDirty()
+	if 0 <= tonumber(groupid) and tonumber(groupid) <= 100 then
+		SWEPs[groupid] = sweps
+		--combinedSWEPs = combineSWEPsThroughRanks()
+		file.Write(saveLocation, util.TableToJSON(SWEPs))
+		PermSWEPsCFG.MakeEveryoneDirty()
+	end
 end
 
-table.Add(PermSWEPsCFG.SWEPProviders, provider)
+PermSWEPsCFG.AddSWEPProvider(provider)

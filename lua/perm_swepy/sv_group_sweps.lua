@@ -7,7 +7,7 @@ provider.id = "grp" // ply, grp, eds
 
 local function loadSWEPs()
 	local saved = file.Read(saveLocation, "DATA")
-	return saved and util.TableToJSON(saved) or {}
+	return saved and util.JSONToTable(saved) or {}
 end
 
 provider.convertPlyToFuncArg = function(ply)
@@ -18,6 +18,7 @@ provider.onInitalSpawnLoad = function(userGroup)
 	if not loadedSWEPs then
 		loadedSWEPs = true
 		SWEPs = loadSWEPs()
+		PrintTable(SWEPs)
 	end
 end
 
@@ -35,4 +36,4 @@ provider.setOnLoadoutSWEPs = function(userGroup, sweps)
 	PermSWEPsCFG.MakeEveryoneDirty()
 end
 
-table.Add(PermSWEPsCFG.SWEPProviders, provider)
+PermSWEPsCFG.AddSWEPProvider(provider)

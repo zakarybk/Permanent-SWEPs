@@ -4,7 +4,7 @@ local plySWEPs = {}
 provider.id = "ply" // ply, grp, eds
 
 local function loadSWEPs(steamid)
-	return util.GetPData(steamid, "PermSweps", false)
+	return util.JSONToTable(util.GetPData(steamid, "PermSweps", "[]"))
 end
 
 provider.convertPlyToFuncArg = function(ply)
@@ -24,9 +24,11 @@ provider.onLoadoutSWEPs = function(steamid)
 end
 
 provider.setOnLoadoutSWEPs = function(steamid, sweps)
-	plySWEPs[steamid] = sweps
-	util.SetPData(steamid, "PermSweps", util.TableToJSON(sweps))
-	PermSWEPsCFG.MakeSteamIDDirty(steamid)
+	if string.Left(steamid, 5) == "STEAM" then
+		plySWEPs[steamid] = sweps
+		util.SetPData(steamid, "PermSweps", util.TableToJSON(sweps))
+		PermSWEPsCFG.MakeSteamIDDirty(steamid)
+	end
 end
 
-table.Add(PermSWEPsCFG.SWEPProviders, provider)
+PermSWEPsCFG.AddSWEPProvider(provider)

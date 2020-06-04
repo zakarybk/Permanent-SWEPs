@@ -1,10 +1,23 @@
 --[[
-	Perma SWEP system by Hackcraft STEAM_0:1:50714411
+	Perma SWEP system by Zak STEAM_0:1:50714411
 ]]--
+
+local providerIDs = {
+	"ply",
+	"grp",
+	"eds"
+}
+
+local providerNames = {
+	["ply"] = "Player",
+	["grp"] = "Group",
+	["eds"] = "EDS"
+}
 
 local currentPerson, currentGroup, currentEDS
 local currentInventory = {}
 local perm = {}
+
 local OtherSweps = PermSWEPsCFG.HiddenSWEPs or {}
 local swepsList = false
 local thingToThing = {
@@ -32,32 +45,37 @@ local function weaponList()
 	return new
 end
 
+local function SendUpdatedSWEPsToProvider(provider, target, sweps)
+	net.Start("PermSweps_SendInventoryToServer")
+		net.WriteString(provider)
+		net.WriteString(target)
+		net.WriteString(util.TableToJSON(sweps))
+	net.SendToServer()
+end
+
 local function InventoryChanged(id, t)
 	if id then
-		net.Start("PermSweps_SendInventoryToServer")
-			net.WriteString(id)
-			net.WriteString(util.TableToJSON(t))
-		net.SendToServer()
+		SendUpdatedSWEPsToProvider("ply", id, t)
 	end
 end
 
 local function GroupInventoryChanged(rank, t)
 	if rank then
-		net.Start("PermSweps_SendGroupInventoryToServer")
-			net.WriteString(rank)
-			net.WriteString(util.TableToJSON(t))
-		net.SendToServer()
+		SendUpdatedSWEPsToProvider("grp", rank, t)
 	end
 end
 
 local function EDSInventoryChanged(num, t)
 	if num and tonumber(num) == num then
-		net.Start("PermSweps_SendEDSInventoryToServer")
-			net.WriteInt(num, 16)
-			PrintTable(t)
-			net.WriteString(util.TableToJSON(t))
-		net.SendToServer()
+		SendUpdatedSWEPsToProvider("eds", num, t)
 	end
+end
+
+local function FetchUpdatedSWEPsFromProvider(provider, target)
+	net.Start("PermSweps_GetInventoryFromServer")
+		net.WriteString(provider)
+		net.WriteString(target)
+	net.SendToServer()
 end
 
 local function IsValidUserGroup(val)
@@ -94,9 +112,8 @@ local function PermMenu()
 				currentPerson = val
 				currentInventory = {}
 				boxes.Player:SetValue( val )
-				net.Start("PermSweps_GetInventoryFromServer")
-					net.WriteString(currentPerson)
-				net.SendToServer()
+
+				FetchUpdatedSWEPsFromProvider("ply", currentPerson)
 			else
 				surface.PlaySound("buttons/button2.wav")
 			end
@@ -107,9 +124,8 @@ local function PermMenu()
 				currentGroup = val
 				currentInventory = {}
 				boxes.Group:SetValue( val )
-				net.Start("PermSweps_GetGroupInventoryFromServer")
-					net.WriteString(currentGroup)
-				net.SendToServer()
+
+				FetchUpdatedSWEPsFromProvider("grp", currentGroup)
 			end
 		elseif boxes.EDS:IsVisible() then
 			val = tonumber(val)
@@ -119,9 +135,8 @@ local function PermMenu()
 				currentEDS = val
 				currentInventory = {}
 				boxes.EDS:SetValue( val )
-				net.Start("PermSweps_GetEDSInventoryFromServer")
-					net.WriteInt(val, 16)
-				net.SendToServer()
+
+				FetchUpdatedSWEPsFromProvider("eds", val)
 			end
 		end
 	end
@@ -134,7 +149,11 @@ local function PermMenu()
 
 	boxes.Pick:AddChoice( "Player" )
 	boxes.Pick:AddChoice( "Group" )
-	boxes.Pick:AddChoice( "EDS" )
+
+	-- Hide Easy Dontation System when not installed (probably no one uses it)
+	if EDSCFG then
+		boxes.Pick:AddChoice( "EDS" )
+	end
 
 	boxes.Pick.OnSelect = function( panel, index, value )
 		currentPerson, currentGroup, currentEDS = false, false, false
@@ -173,9 +192,8 @@ local function PermMenu()
 				currentPerson = v:SteamID()
 				currentInventory = {}
 				boxes.Player:SetValue( v:Nick() )
-				net.Start("PermSweps_GetInventoryFromServer")
-					net.WriteString(currentPerson)
-				net.SendToServer()
+
+				FetchUpdatedSWEPsFromProvider("ply", currentPerson)
 			end
 		end
 		if !did then
@@ -201,9 +219,8 @@ local function PermMenu()
 		currentGroup = value
 		currentInventory = {}
 		boxes.Group:SetValue( value )
-		net.Start("PermSweps_GetGroupInventoryFromServer")
-			net.WriteString(currentGroup)
-		net.SendToServer()
+
+		FetchUpdatedSWEPsFromProvider("grp", currentGroup)
 	end
 
 	-- EDS Power
@@ -220,9 +237,8 @@ local function PermMenu()
 		currentEDS = value
 		currentInventory = {}
 		boxes.EDS:SetValue( value )
-		net.Start("PermSweps_GetEDSInventoryFromServer")
-			net.WriteInt(value, 16)
-		net.SendToServer()
+
+		FetchUpdatedSWEPsFromProvider("eds", value)
 	end
 
 	perm.available = vgui.Create( "DListView", Frame )
@@ -318,59 +334,12 @@ concommand.Add("perm_swep_menu", function(ply)
 	end
 end)
 
--- Player
+-- Update menu
 net.Receive("PermSweps_SendInventoryToClient", function(len)
-	if currentMode != "Player" then return end
-
+	local providerID = net.ReadString()
+	local target = net.ReadString()
 	local data = net.ReadString()
-
-	currentInventory = util.JSONToTable(data)
-
---	print("t")
---	PrintTable(currentInventory)
---	print("t")
-
-	perm.available:Clear()
-	for k, v in ipairs(weaponList()) do
-		perm.available:AddLine( v.PrintName, v.ClassName )
-	end
-
-	perm.inventory:Clear()
-	for k, v in ipairs(getValidSWEPs()) do
-		if table.HasValue(currentInventory, v.ClassName) then
-			perm.inventory:AddLine(v.PrintName, v.ClassName)
-		end
-	end
-end)
-
--- Group
-net.Receive("PermSweps_SendGroupInventoryToClient", function(len)
-	if currentMode != "Group" then return end
-
-	local data = net.ReadString()
-
-	currentInventory = util.JSONToTable(data)
-
-	perm.available:Clear()
-	for k, v in ipairs(weaponList()) do
-		perm.available:AddLine( v.PrintName, v.ClassName )
-	end
-
-	perm.inventory:Clear()
-	for k, v in ipairs(getValidSWEPs()) do
-		if table.HasValue(currentInventory, v.ClassName) then
-			perm.inventory:AddLine(v.PrintName, v.ClassName)
-		end
-	end
-end)
-
--- EDS
-net.Receive("PermSweps_SendEDSInventoryToClient", function(len)
-	if currentMode != "EDS" then return end
-
-	local data = net.ReadString()
-
-	currentInventory = util.JSONToTable(data)
+	currentInventory = util.JSONToTable(data) // sweps
 
 	perm.available:Clear()
 	for k, v in ipairs(weaponList()) do
