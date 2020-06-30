@@ -23,7 +23,7 @@ provider.onInitalSpawnLoad = function(userGroup)
 end
 
 provider.plyLeft = function(userGroup)
-	
+	// Nothing needs to be done here, not in group so never called
 end
 
 provider.onLoadoutSWEPs = function(userGroup)
@@ -33,7 +33,7 @@ end
 provider.setOnLoadoutSWEPs = function(userGroup, sweps)
 	SWEPs[userGroup] = sweps
 	file.Write(saveLocation, util.TableToJSON(SWEPs))
-	PermSWEPsCFG.MakeEveryoneDirty()
+	PermSWEPs.MakeEveryoneDirty()
 end
 
-PermSWEPsCFG.AddSWEPProvider(provider)
+PermSWEPs.AddSWEPProvider(provider)

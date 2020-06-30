@@ -6,6 +6,8 @@ util.AddNetworkString("PermSweps_GetInventoryFromServer")
 util.AddNetworkString("PermSweps_SendInventoryToClient")
 util.AddNetworkString("PermSweps_SendInventoryToServer")
 
+util.AddNetworkString("PermSweps_FetchPlayers")
+
 --[[
 	Dirty cache
 ]]--
@@ -13,16 +15,16 @@ util.AddNetworkString("PermSweps_SendInventoryToServer")
 local setDirty = {}		// ply: true/false (is dirty?)
 local dirtySWEPs = {}	// ply: sweps{} or false/nil
 
-local OtherSweps = PermSWEPsCFG.HiddenSWEPs or {}
+local OtherSweps = PermSWEPs.HiddenSWEPs or {}
 local swepsList = false
 
-PermSWEPsCFG.MakeEveryoneDirty = function()
+PermSWEPs.MakeEveryoneDirty = function()
 	for k, ply in pairs(player.GetAll()) do
 		setDirty[ply] = true
 	end
 end
 
-PermSWEPsCFG.MakeSteamIDDirty = function(steamid)
+PermSWEPs.MakeSteamIDDirty = function(steamid)
 	local ply = player.GetBySteamID(steamid)
 	if ply then
 		setDirty[ply] = true
@@ -49,7 +51,7 @@ CreateConVar("perm_sweps_dirtycache",
 	1,
 	{FCVAR_ARCHIVE, FCVAR_NOTIFY},
 	"When enabled, SWEP lists are cached, so only changes/updates when a hook triggers" ..
-	"or settings are changed. Disable if SWEPs aren't being spawned on loadout." 
+	"or settings are changed. Disable if SWEPs aren't being spawned on loadout."
 )
 local useDirtyCache = GetConVar("perm_sweps_forceswepcheck"):GetInt()
 cvars.AddChangeCallback("perm_sweps_dirtycache", function(convar, oldValue, newValue)
@@ -83,7 +85,7 @@ end
 local function providerFromID(id)
 	local provider = false
 
-	for i, prov in pairs(PermSWEPsCFG.SWEPProviders) do
+	for i, prov in pairs(PermSWEPs.SWEPProviders) do
 		if prov.id == id then
 			provider = prov
 			break
@@ -94,7 +96,7 @@ local function providerFromID(id)
 end
 
 --[[
-	Provider (SWEP providers) hooking 
+	Provider (SWEP providers) hooking
 ]]--
 
 local function table_AddWithoutDuplicates(target, source)
@@ -107,7 +109,7 @@ end
 
 local function buildLoadout(ply)
 	local sweps = {}
-	for i, provider in pairs(PermSWEPsCFG.SWEPProviders) do
+	for i, provider in pairs(PermSWEPs.SWEPProviders) do
 		local special = provider.convertPlyToFuncArg(ply)
 		local weps = provider.onLoadoutSWEPs(special)
 		table_AddWithoutDuplicates(sweps, weps)
@@ -118,7 +120,7 @@ end
 hook.Add("PlayerInitialSpawn", "PermSwepLoad", function(ply)
 	setDirty[ply] = true
 
-	for i, provider in pairs(PermSWEPsCFG.SWEPProviders) do
+	for i, provider in pairs(PermSWEPs.SWEPProviders) do
 		local special = provider.convertPlyToFuncArg(ply)
 		provider.onInitalSpawnLoad(special)
 	end
@@ -128,7 +130,7 @@ hook.Add("PlayerDisconnected", "PermSwepUnLoad", function(ply)
 	dirtySWEPs[ply] = nil
 	setDirty[ply] = nil
 
-	for i, provider in pairs(PermSWEPsCFG.SWEPProviders) do
+	for i, provider in pairs(PermSWEPs.SWEPProviders) do
 		local special = provider.convertPlyToFuncArg(ply)
 		provider.plyLeft(special)
 	end
@@ -192,7 +194,7 @@ end )
 
 -- Add to
 concommand.Add("perm_sweps_add", function(ply, cmd, args, argStr) -- use "" around steamid
-	if !IsValid(ply) or PermSWEPsCFG.CanEdit(ply) then
+	if !IsValid(ply) or PermSWEPs.CanEdit(ply) then
 		if args[1] != nil and args[2] != nil then
 			local target = args[1]
 			if string.Left(target, 5) == "STEAM" then
@@ -213,7 +215,7 @@ end)
 
 -- Remove from
 concommand.Add("perm_sweps_remove", function(ply, cmd, args, argStr)
-	if !IsValid(ply) or PermSWEPsCFG.CanEdit(ply) then
+	if !IsValid(ply) or PermSWEPs.CanEdit(ply) then
 		if args[1] != nil and args[2] != nil then
 			local target = args[1]
 			if string.Left(target, 5) == "STEAM" then
@@ -230,7 +232,7 @@ concommand.Add("perm_sweps_remove", function(ply, cmd, args, argStr)
 							table.insert(newweps, v)
 						end
 					end
-					
+
 					provider.setOnLoadoutSWEPs(target, newweps)
 				end
 			end
@@ -244,8 +246,8 @@ end)
 
 -- Update inventory
 net.Receive("PermSweps_SendInventoryToServer", function(len, ply)
-	if !PermSWEPsCFG.CanEdit(ply) then return end
-	
+	if !PermSWEPs.CanEdit(ply) then return end
+
 	local providerID = net.ReadString()
 	local provider = providerFromID(providerID)
 	local target = net.ReadString()
@@ -266,7 +268,7 @@ end)
 
 -- Get inventory
 net.Receive("PermSweps_GetInventoryFromServer", function(len, ply)
-	if !PermSWEPsCFG.CanEdit(ply) then return end
+	if !PermSWEPs.CanEdit(ply) then return end
 
 	local providerID = net.ReadString()
 	local provider = providerFromID(providerID)
@@ -281,6 +283,12 @@ net.Receive("PermSweps_GetInventoryFromServer", function(len, ply)
 	else
 		ply:ChatPrint("[PermSWEP]: '" .. providerID .. "' not found! Did you use auto-refresh?")
 	end
+end)
+
+net.Receive("PermSweps_FetchPlayers", function(len, ply)
+	if !PermSWEPs.CanEdit(ply) then return end
+
+	sql.Query("string query")
 end)
 
 --[[

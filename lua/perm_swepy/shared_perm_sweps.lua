@@ -1,6 +1,6 @@
-PermSWEPsCFG = PermSWEPsCFG or {}
+PermSWEPs = PermSWEPs or {}
 
-PermSWEPsCFG.HiddenSWEPs = { -- Ones which don't appear in weapons.GetList - If some SWEPs aren't listed and you don't want to add to this then run "perm_sweps_wepCheckVar 0" in console
+PermSWEPs.HiddenSWEPs = { -- Ones which don't appear in weapons.GetList - If some SWEPs aren't listed and you don't want to add to this then run "perm_sweps_wepCheckVar 0" in console
 	-- HL2
 	{ClassName = "weapon_357", PrintName = "357"},
 	{ClassName = "weapon_ar2", PrintName = "AR2"},
@@ -18,21 +18,23 @@ PermSWEPsCFG.HiddenSWEPs = { -- Ones which don't appear in weapons.GetList - If 
 	{ClassName = "weapon_stunstick", PrintName = "Stunstick"}
 }
 
-PermSWEPsCFG.CanEdit = function(ply)
+PermSWEPs.CanEdit = function(ply)
 	return ply:IsSuperAdmin()
 end
 
 -- Do not edit below this line
-PermSWEPsCFG.SWEPProviders = {}
-PermSWEPsCFG.AddSWEPProvider = function(provider)
+PermSWEPs.SWEPProviders = {}
+PermSWEPs.AddSWEPProvider = function(provider)
 	-- Remove duplicates, backwards to avoid problems with reordering
-	for i=#PermSWEPsCFG.SWEPProviders, 1, -1 do
-		if PermSWEPsCFG.SWEPProviders[i].id == provider.id then
-			table.remove(PermSWEPsCFG.SWEPProviders, PermSWEPsCFG.SWEPProviders[i])
+	for i=#PermSWEPs.SWEPProviders, 1, -1 do
+		if PermSWEPs.SWEPProviders[i].id == provider.id then
+			table.remove(PermSWEPs.SWEPProviders, PermSWEPs.SWEPProviders[i])
 		end
 	end
-	table.insert(PermSWEPsCFG.SWEPProviders, provider)
+	table.insert(PermSWEPs.SWEPProviders, provider)
 end
+
+PermSWEPs.DataTablePrefix = "perm_swep"
 
 -- Adding/removing weapons from console
 --[[

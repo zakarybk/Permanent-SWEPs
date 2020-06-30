@@ -68,8 +68,8 @@ provider.setOnLoadoutSWEPs = function(groupid, sweps)
 		SWEPs[groupid] = sweps
 		--combinedSWEPs = combineSWEPsThroughRanks()
 		file.Write(saveLocation, util.TableToJSON(SWEPs))
-		PermSWEPsCFG.MakeEveryoneDirty()
+		PermSWEPs.MakeEveryoneDirty()
 	end
 end
 
-PermSWEPsCFG.AddSWEPProvider(provider)
+PermSWEPs.AddSWEPProvider(provider)

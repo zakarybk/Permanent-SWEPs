@@ -18,7 +18,7 @@ local currentPerson, currentGroup, currentEDS
 local currentInventory = {}
 local perm = {}
 
-local OtherSweps = PermSWEPsCFG.HiddenSWEPs or {}
+local OtherSweps = PermSWEPs.HiddenSWEPs or {}
 local swepsList = false
 local thingToThing = {
 	["Player"] = "steam id",
